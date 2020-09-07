@@ -1,0 +1,19 @@
+{
+  "name": "traceroute-viz",
+  "version": "1.0.0",
+  "description": "A visualisation for traceroutes",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/protango/Traceroute-Viz.git"
+  },
+  "author": "",
+  "license": "UNLICENCED",
+  "bugs": {
+    "url": "https://github.com/protango/Traceroute-Viz/issues"
+  },
+  "homepage": "https://github.com/protango/Traceroute-Viz#readme"
+}
