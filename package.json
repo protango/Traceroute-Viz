@@ -4,7 +4,8 @@
   "description": "A visualisation for traceroutes",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
   },
   "repository": {
     "type": "git",
@@ -15,5 +16,12 @@
   "bugs": {
     "url": "https://github.com/protango/Traceroute-Viz/issues"
   },
-  "homepage": "https://github.com/protango/Traceroute-Viz#readme"
+  "homepage": "https://github.com/protango/Traceroute-Viz#readme",
+  "devDependencies": {
+    "electron": "^10.1.1"
+  },
+  "dependencies": {
+    "highcharts": "^8.2.0",
+    "jquery": "^3.5.1"
+  }
 }
