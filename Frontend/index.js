@@ -8,8 +8,14 @@ const Highcharts = require('Highcharts');
 const Highmaps = require('Highcharts/highmaps');
 const ping = require ("net-ping");
 
+///** @type {typeof import("./Classes/TracerouteTarget")} */
+//const TracerouteTarget = require('electron').remote.require('./Frontend/Classes/TracerouteTarget');
+const TracerouteTarget = require('./Classes/TracerouteTarget');
+const GeoIP = require('../GeoIP/GeoIP');
+const TracerouteTargetCollection = require('./Classes/TracerouteTargetCollection');
+const { readFile } = require('fs');
 
-
+// @ts-ignore
 var chart = Highmaps.mapChart('mapContainer', {
     title: {
         text: 'Geographic Traceroute'
@@ -25,22 +31,14 @@ var chart = Highmaps.mapChart('mapContainer', {
         enabled: true
     },
 
-    tooltip: {
-        formatter: function () {
-            return this.point.id + (
-                this.point.lat ?
-                    '<br>Lat: ' + this.point.lat + ' Lon: ' + this.point.lon : ''
-            );
-        }
-    },
-
     plotOptions: {
         series: {
             marker: {
                 fillColor: '#FFFFFF',
                 lineWidth: 2,
                 lineColor: Highmaps.getOptions().colors[1]
-            }
+            },
+            stickyTracking: false
         }
     },
     
@@ -58,85 +56,72 @@ var chart = Highmaps.mapChart('mapContainer', {
         color: '#707070',
         showInLegend: false,
         enableMouseTracking: false
-    }, {
-        // Specify cities using lat/lon
-        type: 'mappoint',
-        name: 'Cities',
-        dataLabels: {
-            format: '{point.id}'
-        },
-        // Use id instead of name to allow for referencing points later using
-        // chart.get
-        data: [{
-            id: 'London',
-            lat: 51.507222,
-            lon: -0.1275
-        }, {
-            id: 'Birmingham',
-            lat: 52.483056,
-            lon: -1.893611
-        }, {
-            id: 'Leeds',
-            lat: 53.799722,
-            lon: -1.549167
-        }, {
-            id: 'Glasgow',
-            lat: 55.858,
-            lon: -4.259
-        }, {
-            id: 'Sheffield',
-            lat: 53.383611,
-            lon: -1.466944
-        }, {
-            id: 'Liverpool',
-            lat: 53.4,
-            lon: -3
-        }, {
-            id: 'Bristol',
-            lat: 51.45,
-            lon: -2.583333
-        }, {
-            id: 'Belfast',
-            lat: 54.597,
-            lon: -5.93
-        }, {
-            id: 'Lerwick',
-            lat: 60.155,
-            lon: -1.145,
-            dataLabels: {
-                align: 'left',
-                x: 5,
-                verticalAlign: 'middle'
-            }
-        }]
     }]
 });
 
-var pingSession = ping.createSession();
+$("#saveGeoCache").on("click", () => {
+    GeoIP.saveCache();
+});
 
-function doneCb (error, target) {
-    if (error)
-        console.log (target + ": " + error.toString ());
-    else
-        console.log (target + ": Done");
-}
+/** @type {Highcharts.Series[]} */
+let chartHosts = [];
 
-function feedCb (error, target, ttl, sent, rcvd) {
-    var ms = rcvd - sent;
-    if (error) {
-        if (error instanceof ping.TimeExceededError) {
-            console.log (target + ": " + error.source + " (ttl="
-                    + ttl + " ms=" + ms +")");
-        } else {
-            console.log (target + ": " + error.toString ()
-                    + " (ttl=" + ttl + " ms=" + ms +")");
-        }
-    } else {
-        console.log (target + ": " + target + " (ttl=" + ttl
-                + " ms=" + ms +")");
-    }
-}
+$("#test").on("click", async () => {
+    /*let r = await TracerouteTargetCollection.parse(["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]);
+    await r.trace();
+    await r.analyseHops();
+    await r.fixupFirstHops();
+    console.log(r);*/
 
-document.body.onclick = function () {
-    pingSession.traceRoute ("8.8.8.8", 32, feedCb, doneCb);
-}
+    let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
+    let r = new TracerouteTargetCollection([]);
+    Object.assign(r, data);
+
+    let stats = r.calcStats();
+
+    if (chartHosts.length) chartHosts.forEach(x => x.remove());
+    chartHosts = [];
+
+    chartHosts.push(chart.addSeries({
+        type: 'mappoint',
+        name: 'Hosts',
+        dataLabels: {
+            format: '{point.name}'
+        },
+        tooltip: {
+            pointFormat: "{point.name}"
+        },
+        marker: {
+            symbol: "circle",
+            lineColor: "#000000"
+        },
+        data: stats.hosts.map(x => ({
+            id: x.hop.ip,
+            lat: x.hop.lat,
+            lon: x.hop.lon,
+            name: x.hop.url
+        }))
+    }));
+
+    let maxUtil = Math.max(...stats.links.map(x => x.utilisation));
+    chartHosts.push(chart.addSeries({
+        type: 'mapline',
+        name: 'Routes',
+        lineWidth: 2,
+        color: Highcharts.getOptions().colors[5],
+        tooltip: {
+            pointFormat: "{point.name}<br>{point.description}"
+        },
+        data: stats.links.map(x => {
+            let srcPoint = /** @type {Highcharts.Point} */(chart.get(x.source.ip));
+            let snkPoint = /** @type {Highcharts.Point} */(chart.get(x.sink.ip));
+            return {
+                id: x.source.ip+x.sink.ip,
+                path: `M${srcPoint.x} ${srcPoint.y}L${snkPoint.x} ${snkPoint.y}`,
+                name: `${x.source.url} -> ${x.sink.url}`,
+                color: `rgb(${255*(x.utilisation/maxUtil)},0,0)`,
+                description: `${x.utilisation*100}% Utilisation`
+            };
+        })
+    }));
+});

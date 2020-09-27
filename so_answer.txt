@@ -1,1 +1,6 @@
 https://stackoverflow.com/a/52796884/5803423
+
+Run: .\node_modules\.bin\electron-rebuild.cmd
+after npm install
+
+must have c++ toools installed in VS2017/2019
