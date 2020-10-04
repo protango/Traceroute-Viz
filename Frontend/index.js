@@ -114,7 +114,7 @@ $("#test").on("click", async () => {
 });
 
 $("#debug").on("click", async () => {
-    let topSites = ["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]; //await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
+    let topSites = /*["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"];*/await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
     let r = await TracerouteTargetCollection.parse(topSites);
 
     let prog = new FrontEndProgressBar("Tracing targets", "Completed 0 out of " + r.targets.length, r.targets.length, 0);
@@ -127,6 +127,9 @@ $("#debug").on("click", async () => {
     await r.fixupFirstHops();
     prog.close();
     GeoIP.saveCache();
+
+    // @ts-ignore
+    window.r = r;
 
     /*let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
     let r = new TracerouteTargetCollection([]);
