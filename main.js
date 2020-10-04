@@ -1,5 +1,8 @@
 const { app, BrowserWindow } = require('electron');
 
+// @ts-ignore
+global.ProgressBar = require('electron-progressbar');
+
 function createWindow () {
   // Create the browser window.
   const win = new BrowserWindow({

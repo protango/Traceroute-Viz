@@ -23,8 +23,17 @@ class TracerouteTargetCollection {
     }
 
     async trace() {
-        await Promise.all(this.targets.map(x => x.trace()));
+        let doneCount = 0;
+        /** @param {TracerouteTarget} target */
+        let traceTarget = async (target) => {
+            await target.trace();
+            doneCount++;
+            this.onTraceProgress(doneCount);
+        }
+        await Promise.all(this.targets.map(x => traceTarget(x)));
     }
+
+    onTraceProgress = (/** @type {number} */progress) => {};
 
     async analyseHops() {
         await Promise.all(this.targets.map(x => Promise.all(x.hops.map(y => y.analyse()))));

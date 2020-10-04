@@ -9,6 +9,7 @@ const sunburst = require('Highcharts/modules/sunburst');
 const Highmaps = require('Highcharts/highmaps');
 const ping = require ("net-ping");
 
+
 sunburst.default(Highcharts);
 
 ///** @type {typeof import("./Classes/TracerouteTarget")} */
@@ -17,6 +18,7 @@ const TracerouteTarget = require('./Classes/TracerouteTarget');
 const GeoIP = require('../GeoIP/GeoIP');
 const TracerouteTargetCollection = require('./Classes/TracerouteTargetCollection');
 const { readFile } = require('fs');
+const FrontEndProgressBar = require('./Classes/ProgressBar');
 
 // @ts-ignore
 var chart = Highmaps.mapChart('mapContainer', {
@@ -97,26 +99,33 @@ $("#saveGeoCache").on("click", () => {
 let chartHosts = [];
 
 $("#test").on("click", async () => {
+    new FrontEndProgressBar("title", "text!", 100, 0);
     /*let r = await TracerouteTargetCollection.parse(["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]);
     await r.trace();
     await r.analyseHops();
     await r.fixupFirstHops();
-    console.log(r);*/
+    console.log(r);
 
     let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
     let r = new TracerouteTargetCollection([]);
-    Object.assign(r, data);
+    Object.assign(r, data);*/
 
 
 });
 
 $("#debug").on("click", async () => {
-    let topSites = await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
+    let topSites = ["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]; //await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
     let r = await TracerouteTargetCollection.parse(topSites);
+
+    let prog = new FrontEndProgressBar("Tracing targets", "Completed 0 out of " + r.targets.length, r.targets.length, 0);
+    r.onTraceProgress = (val) => {
+        prog.setValue(val);
+        prog.setText("Completed "+val+" out of " + r.targets.length);
+    }
     await r.trace();
     await r.analyseHops();
     await r.fixupFirstHops();
-    console.log(r);
+    prog.close();
     GeoIP.saveCache();
 
     /*let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
@@ -231,3 +240,4 @@ let genSunburst = function(r) {
         }
     }, true);
 }
+
