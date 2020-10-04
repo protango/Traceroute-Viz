@@ -19,6 +19,8 @@ class TracerouteHop {
     /** @type {string} */
     city
     /** @type {string} */
+    country
+    /** @type {string} */
     url
 
     /**
@@ -37,6 +39,7 @@ class TracerouteHop {
         this.lat = geo.latitude;
         this.lon = geo.longitude;
         this.city = geo.city;
+        this.country = geo.country_name;
 
         try { this.url = await Dns.reverse(this.ip); }
         catch { this.url = this.ip; }

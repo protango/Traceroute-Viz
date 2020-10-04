@@ -2,6 +2,7 @@ const TracerouteTarget = require("./TracerouteTarget");
 const GeoIP = require('../../GeoIP/GeoIP');
 const publicIp = require('public-ip');
 const TracerouteHop = require("./TracerouteHop");
+const internalIp = require('internal-ip');
 
 class TracerouteTargetCollection {
     /** @type {TracerouteTarget[]} */
@@ -39,6 +40,7 @@ class TracerouteTargetCollection {
                 h.lat = geo.latitude;
                 h.lon = geo.longitude;
                 h.city = geo.city;
+                h.country = geo.country_name;
             }
         }
     }
@@ -82,6 +84,54 @@ class TracerouteTargetCollection {
         }
 
         return {hosts: Object.values(hosts), links: Object.values(links)};
+    }
+
+    calcSunburst() {
+        /** @type {{level: number, index: number, utilisation: number, parent: {level: number, index: number}, hop: TracerouteHop}[][]} */
+        let levels = [[
+            {
+                level: 0,
+                index: 0,
+                utilisation: 1,
+                hop: new TracerouteHop(0, 0, internalIp.v4.sync()),
+                parent: null
+            }
+        ]];
+
+        for (let target of this.targets) {
+            let lastHop = levels[0][0];
+            for (let level = 1; level <= target.hops.length; level++) {
+                let hop = target.hops[level - 1];
+
+                
+                let levelHops = levels[level];
+                if (levelHops == null) {
+                    levelHops = [];
+                    levels[level] = levelHops;
+                }
+
+                let levelHop = levelHops.find(x => x.hop.ip === hop.ip && x.parent.index === lastHop.index);
+                if (levelHop == null) {
+                    levelHop = {
+                        level: level,
+                        index: levelHops.length,
+                        utilisation: 0,
+                        hop: hop,
+                        parent: {
+                            level: level - 1,
+                            index: lastHop.index
+                        }
+                    };
+                    levelHops.push(levelHop);
+                }
+
+                levelHop.utilisation++;
+
+                lastHop = levelHop;
+            }
+        }
+        
+        return levels;
     }
 }
 

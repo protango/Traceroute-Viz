@@ -13,6 +13,8 @@ function createWindow () {
 
   // and load the index.html of the app.
   win.loadFile('Frontend/index.html')
+
+  win.webContents.openDevTools();
 }
 app.allowRendererProcessReuse = false;
 // This method will be called when Electron has finished

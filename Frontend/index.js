@@ -5,8 +5,11 @@ if (typeof window !== 'undefined') {
 }
 
 const Highcharts = require('Highcharts');
+const sunburst = require('Highcharts/modules/sunburst');
 const Highmaps = require('Highcharts/highmaps');
 const ping = require ("net-ping");
+
+sunburst.default(Highcharts);
 
 ///** @type {typeof import("./Classes/TracerouteTarget")} */
 //const TracerouteTarget = require('electron').remote.require('./Frontend/Classes/TracerouteTarget');
@@ -57,6 +60,33 @@ var chart = Highmaps.mapChart('mapContainer', {
         showInLegend: false,
         enableMouseTracking: false
     }]
+});
+
+
+// Splice in transparent for the center circle
+Highcharts.getOptions().colors.splice(0, 0, 'transparent');
+
+// @ts-ignore
+var sunburstChart = Highcharts.chart('sunburst', {
+    chart: {
+        //height: '100%'
+    },
+
+    title: {
+        text: 'Sunburst!'
+    },
+    series: [{
+        id: "main",
+        type: "sunburst",
+        data: [],
+        allowDrillToNode: true,
+        cursor: 'pointer',
+        levels: []
+    }],
+    tooltip: {
+        headerFormat: "",
+        pointFormat: '{point.description}'
+    }
 });
 
 $("#saveGeoCache").on("click", () => {
@@ -125,3 +155,63 @@ $("#test").on("click", async () => {
         })
     }));
 });
+
+$("#debug").on("click", async () => {
+    
+});
+let debug = async function() {
+    /*let r = await TracerouteTargetCollection.parse(["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]);
+    await r.trace();
+    await r.analyseHops();
+    await r.fixupFirstHops();
+    console.log(JSON.stringify(r));*/
+
+    let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
+    let r = new TracerouteTargetCollection([]);
+    Object.assign(r, data);
+
+    let rawSb = r.calcSunburst();
+    let sbData = rawSb.flat().map(x => ({
+        id: x.level + "." + x.index,
+        parent: x.parent ? x.parent.level + "." + x.parent.index : null,
+        name: x.hop.ip,
+        value: x.utilisation,
+        description: `<b>${x.hop.ip}</b>
+            ${x.hop.url && x.hop.url !== x.hop.ip ? `<br><i>${x.hop.url}</i>` : ''}
+            ${x.hop.city ? `<br>${x.hop.city}, ${x.hop.country}` : ''}`
+    }));
+
+    let series = /** @type {Highcharts.Series} */(sunburstChart.get("main"));
+
+    let colourByPointDone = false;
+    series.update({
+        data: sbData,
+        // @ts-ignore
+        levels: rawSb.map((x, i) => {
+            let multiColor = x.length > 1 && !colourByPointDone;
+            if (multiColor) colourByPointDone = true;
+            return {
+                level: i + 1,
+                colorByPoint: multiColor,
+                levelIsConstant: i !== 0,
+                dataLabels: {
+                    format: '{point.name}',
+                    filter: {
+                        property: i === 0 ? 'outerArcLength' : 'innerArcLength',
+                        operator: '>',
+                        value: i === 0 ? 64 : 16
+                    },
+                    rotationMode: 'circular',
+                    color: !colourByPointDone ? "black" : undefined
+                },
+                colorVariation: !multiColor ? {
+                    key: 'brightness',
+                    to: 0.5
+                } : undefined,
+                color: !colourByPointDone ? "lightgrey" : undefined
+            };
+        })
+    }, true);
+}
+
+debug();

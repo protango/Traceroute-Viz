@@ -1,7 +1,9 @@
 {
     "compilerOptions": {
       "checkJs": true,
-      "resolveJsonModule": true
+      "moduleResolution": "node",
+      "resolveJsonModule": true,
+      "target": "es2019"
     },
     "exclude": ["node_modules", "**/node_modules/*"]
 }
