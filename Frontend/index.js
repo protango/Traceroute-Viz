@@ -73,7 +73,7 @@ var sunburstChart = Highcharts.chart('sunburst', {
     },
 
     title: {
-        text: 'Sunburst!'
+        text: 'Traceroute hierarchy'
     },
     series: [{
         id: "main",
@@ -107,6 +107,30 @@ $("#test").on("click", async () => {
     let r = new TracerouteTargetCollection([]);
     Object.assign(r, data);
 
+
+});
+
+$("#debug").on("click", async () => {
+    let topSites = await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
+    let r = await TracerouteTargetCollection.parse(topSites);
+    await r.trace();
+    await r.analyseHops();
+    await r.fixupFirstHops();
+    console.log(r);
+    GeoIP.saveCache();
+
+    /*let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
+    let r = new TracerouteTargetCollection([]);
+    Object.assign(r, data);*/
+
+    genMap(r);
+    genSunburst(r);
+});
+
+/**
+ * @param {TracerouteTargetCollection} r 
+ */
+let genMap = function(r) {
     let stats = r.calcStats();
 
     if (chartHosts.length) chartHosts.forEach(x => x.remove());
@@ -154,22 +178,12 @@ $("#test").on("click", async () => {
             };
         })
     }));
-});
+}
 
-$("#debug").on("click", async () => {
-    
-});
-let debug = async function() {
-    /*let r = await TracerouteTargetCollection.parse(["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]);
-    await r.trace();
-    await r.analyseHops();
-    await r.fixupFirstHops();
-    console.log(JSON.stringify(r));*/
-
-    let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
-    let r = new TracerouteTargetCollection([]);
-    Object.assign(r, data);
-
+/**
+ * @param {TracerouteTargetCollection} r 
+ */
+let genSunburst = function(r) {
     let rawSb = r.calcSunburst();
     let sbData = rawSb.flat().map(x => ({
         id: x.level + "." + x.index,
@@ -210,8 +224,10 @@ let debug = async function() {
                 } : undefined,
                 color: !colourByPointDone ? "lightgrey" : undefined
             };
-        })
+        }),
+        animation: {
+            duration: 1000,
+            defer: 0
+        }
     }, true);
 }
-
-debug();
