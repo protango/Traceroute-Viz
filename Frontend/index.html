@@ -8,9 +8,16 @@
     <link rel="stylesheet" type="text/css" href="./index.css" />
   </head>
   <body>
-    <button id="saveGeoCache">Save GEOIP Cache</button>
-    <button id="test">Test</button>
-    <button id="debug">Debug</button>
+    <h1 style="font-family: sans-serif;font-size: 15px;margin: 5px 0 2px 0;resize: none;">Sites to trace (separated by a new line)</h1>
+    <textarea id="sites" style="width: 100%;height: 100px">
+
+    </textarea>
+
+    <button id="trace">Trace</button>
+    <div>
+      <input type="checkbox" id="colorByRtt" />
+      <label for="colorByRtt">Colour by round trip times</label>
+    </div>
     <div id="mapContainer" style="height: 600px"></div>
     <div id="sunburst" style="height: 600px"></div>
     <script src="index.js"></script>

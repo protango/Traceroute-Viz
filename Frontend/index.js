@@ -98,23 +98,8 @@ $("#saveGeoCache").on("click", () => {
 /** @type {Highcharts.Series[]} */
 let chartHosts = [];
 
-$("#test").on("click", async () => {
-    new FrontEndProgressBar("title", "text!", 100, 0);
-    /*let r = await TracerouteTargetCollection.parse(["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"]);
-    await r.trace();
-    await r.analyseHops();
-    await r.fixupFirstHops();
-    console.log(r);
-
-    let data = await new Promise(r => readFile("./sample.json", (err, data) => r(JSON.parse(data.toString()))));
-    let r = new TracerouteTargetCollection([]);
-    Object.assign(r, data);*/
-
-
-});
-
-$("#debug").on("click", async () => {
-    let topSites = /*["dns.google", "1.1.1.1", "amazon.com", "spotify.com", "netflix.com"];*/await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
+$("#trace").on("click", async () => {
+    let topSites = /** @type {string} */($("#sites").val()).replace("\r", "").split("\n");
     let r = await TracerouteTargetCollection.parse(topSites);
 
     let prog = new FrontEndProgressBar("Tracing targets", "Completed 0 out of " + r.targets.length, r.targets.length, 0);
@@ -137,7 +122,11 @@ $("#debug").on("click", async () => {
 
     genMap(r);
     genSunburst(r);
+    lastResultCollection = r;
 });
+
+/** @type {TracerouteTargetCollection} */
+let lastResultCollection = null;
 
 /**
  * @param {TracerouteTargetCollection} r 
@@ -169,7 +158,8 @@ let genMap = function(r) {
         }))
     }));
 
-    let maxUtil = Math.max(...stats.links.map(x => x.utilisation));
+    let maxRtt = Math.max(...stats.hosts.map(x => x.hop.roundTripTime));
+    let colByRtt = $("#colorByRtt").is(':checked');
     chartHosts.push(chart.addSeries({
         type: 'mapline',
         name: 'Routes',
@@ -185,8 +175,8 @@ let genMap = function(r) {
                 id: x.source.ip+x.sink.ip,
                 path: `M${srcPoint.x} ${srcPoint.y}L${snkPoint.x} ${snkPoint.y}`,
                 name: `${x.source.url} -> ${x.sink.url}`,
-                color: `rgb(${255*(x.utilisation/maxUtil)},0,0)`,
-                description: `${x.utilisation*100}% Utilisation`
+                color: colByRtt ? `rgb(${255*(x.sink.roundTripTime/maxRtt)},0,0)` : "black",
+                description: `${x.sink.roundTripTime}ms`
             };
         })
     }));
@@ -197,19 +187,24 @@ let genMap = function(r) {
  */
 let genSunburst = function(r) {
     let rawSb = r.calcSunburst();
-    let sbData = rawSb.flat().map(x => ({
+    let rawFlat = rawSb.flat();
+    let maxRtt = Math.max(...rawFlat.map(x => x.hop.roundTripTime));
+    let colByRtt = $("#colorByRtt").is(':checked');
+    let sbData = rawFlat.map(x => ({
         id: x.level + "." + x.index,
         parent: x.parent ? x.parent.level + "." + x.parent.index : null,
-        name: x.hop.ip,
+        name: x.hop.url,
         value: x.utilisation,
-        description: `<b>${x.hop.ip}</b>
+        description: `<b>${x.hop.ip}</b> (${x.hop.roundTripTime}ms)
             ${x.hop.url && x.hop.url !== x.hop.ip ? `<br><i>${x.hop.url}</i>` : ''}
-            ${x.hop.city ? `<br>${x.hop.city}, ${x.hop.country}` : ''}`
+            ${x.hop.city ? `<br>${x.hop.city}, ${x.hop.country}` : ''}`,
+        color: colByRtt ? `rgb(${x.hop.roundTripTime / maxRtt * 255}, 0, 0)` : undefined
     }));
 
     let series = /** @type {Highcharts.Series} */(sunburstChart.get("main"));
 
     let colourByPointDone = false;
+    // @ts-ignore
     series.update({
         data: sbData,
         // @ts-ignore
@@ -218,7 +213,7 @@ let genSunburst = function(r) {
             if (multiColor) colourByPointDone = true;
             return {
                 level: i + 1,
-                colorByPoint: multiColor,
+                colorByPoint: !colByRtt ? multiColor : undefined,
                 levelIsConstant: i !== 0,
                 dataLabels: {
                     format: '{point.name}',
@@ -228,13 +223,13 @@ let genSunburst = function(r) {
                         value: i === 0 ? 64 : 16
                     },
                     rotationMode: 'circular',
-                    color: !colourByPointDone ? "black" : undefined
+                    color: colByRtt ? "white" : !colourByPointDone ? "black" : undefined
                 },
-                colorVariation: !multiColor ? {
+                colorVariation: !multiColor && !colByRtt ? {
                     key: 'brightness',
                     to: 0.5
                 } : undefined,
-                color: !colourByPointDone ? "lightgrey" : undefined
+                color: !colourByPointDone && !colByRtt ? "lightgrey" : undefined
             };
         }),
         animation: {
@@ -244,3 +239,17 @@ let genSunburst = function(r) {
     }, true);
 }
 
+$("#colorByRtt").on("change", () => {
+    if (lastResultCollection) {
+        genMap(lastResultCollection);
+        genSunburst(lastResultCollection);
+    }
+});
+
+async function initSites() {
+    /** @type {string[]} */
+    let topSites = await new Promise(r => readFile("./topsites.json", (err, data) => r(JSON.parse(data.toString()))));
+    $("#sites").text(topSites.join("\r\n"));
+}
+
+initSites();
